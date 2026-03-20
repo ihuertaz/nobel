@@ -1,194 +1,91 @@
 import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
 
-let data = await d3.csv("assets/nobel-laureates.csv", d => {
-    return {
-        id: parseInt(d.id),
-        category: d["Category"],
-        gender: d["Gender"],
-    }
-});
+// Load and clean data
+let data = await d3.csv("assets/nobel-laureates.csv", d => ({
+  id: +d.id,
+  gender: d.Gender
+}));
 
-data = data.filter(d => d.gender !== "org")
+// Keep only male and female entries
+data = data.filter(d => d.gender === "male" || d.gender === "female");
 
-console.log(data);
- 
- const width = 700;
- const height = 700;
+// Chart size
+const width = 700;
+const height = 400;
+const radius = 6;
 
- const circleRadius = 6;
- const center = { x: width / 2, y: height / 2 };
+// SVG
+const svg = d3.create("svg")
+  .attr("width", width)
+  .attr("height", height);
 
- const categories = Array.from(new Set(data.map(d => d.category)));
-const colourScale = d3.scaleOrdinal(categories, d3.schemeTableau10);
+// Gender positions
+const genderPositions = {
+  male: width * 0.3,
+  female: width * 0.7
+};
 
- const svg = d3.create("svg")
-     .attr("width", width)
-     .attr("height", height);
+// Colour scale
+const colour = d3.scaleOrdinal()
+  .domain(["male", "female"])
+  .range(["#4e79a7", "#e15759"]);
 
+// Create nodes with starting position in the middle
+const nodes = data.map(d => ({
+  ...d,
+  x: width / 2,
+  y: height / 2
+}));
 
-const nodes = data.map((d, index) => {
-    return {
-        id: index,
-        r: circleRadius,
-        data: d,
-    }
-})
-
-initialLayout(nodes);
-
+// Draw circles
 const circles = svg.append("g")
-    .selectAll("circle")
-    .data(nodes)
-    .join("circle")
-    .attr("r", 0)
-    .attr("cx", d => d.x)
-    .attr("cy", d => d.y)
-    .attr("fill", "#CCC");
+  .selectAll("circle")
+  .data(nodes)
+  .join("circle")
+  .attr("cx", width / 2)
+  .attr("cy", height / 2)
+  .attr("r", 0)
+  .attr("fill", d => colour(d.gender))
+  .attr("opacity", 0.8);
 
+// Animate circles appearing
 circles.transition()
-    .delay(() => Math.random() * 500)
-    .duration(750)
-    .attrTween("r", d => {
-        const i = d3.interpolate(0, d.r);
-        return t => d.r = i(t);
-    })
+  .duration(800)
+  .attr("r", radius);
 
-const categoryLabels = svg.append("g")
-    .selectAll("text")
-    .data(categories)
-    .join("text")
-    .text(d => d)
-    .attr("fill", "#333")
-    .attr("text-anchor", "middle")
-    .attr("font-size", "16px")
-    .attr("font-weight", "bold")
-    .attr("style", "filter: drop-shadow(1px 1px 2px rgb(255 255 255)) drop-shadow(-1px -1px 2px rgb(255 255 255)) drop-shadow(-1px 1px 2px rgb(255 255 255)) drop-shadow(1px -1px 2px rgb(255 255 255))")
-    .attr("opacity", 0)
+// Force simulation to separate by gender
+const simulation = d3.forceSimulation(nodes)
+  .force("x", d3.forceX(d => genderPositions[d.gender]).strength(0.1))
+  .force("y", d3.forceY(height / 2).strength(0.1))
+  .force("collide", d3.forceCollide(radius + 1))
+  .stop();
 
-const container = d3.select("#chart").node()
-container.prepend(svg.node())
+// Run the simulation for a bit before drawing final positions
+for (let i = 0; i < 200; i++) simulation.tick();
 
-const observer = new IntersectionObserver(callback, {
-    rootMargin: "0px",
-    threshold: 1,
-})
-const sections = document.querySelectorAll("section");
-sections.forEach(section => observer.observe(section))
+// Transition circles into grouped positions
+circles.transition()
+  .delay(900)
+  .duration(1200)
+  .attr("cx", d => d.x)
+  .attr("cy", d => d.y);
 
-let currentStep = 0;
+// Add labels
+svg.append("text")
+  .attr("x", genderPositions.male)
+  .attr("y", 40)
+  .attr("text-anchor", "middle")
+  .attr("font-size", "20px")
+  .attr("font-weight", "bold")
+  .text("Male");
 
-function callback(entries) {
-    entries.forEach(entry => {
-        if (entry.isIntersecting) {
-            const section = entry.target;
-            const index = Array.from(sections).indexOf(section);
-            if (index !== currentStep) {
-                currentStep = index;
-                console.log("step changed", currentStep);
-                updateLayoutForStep(currentStep);
-            }
-        }
-    })
-}
+svg.append("text")
+  .attr("x", genderPositions.female)
+  .attr("y", 40)
+  .attr("text-anchor", "middle")
+  .attr("font-size", "20px")
+  .attr("font-weight", "bold")
+  .text("Female");
 
-function updateLayoutForStep(step) {
-    let fill = "#CCC"
-    let centroids;
-
-    switch (step) {
-        case 0:
-            initialLayout(nodes);
-            break;
-        case 1:
-            const layout = clusteredLayout(nodes, "category");
-            centroids = layout.centroids;
-            fill = d => {
-                return colourScale(d.data.category)
-            }
-            categoryLabels
-                .attr("x", d => centroids.get(d).x)
-                .attr("y", d => centroids.get(d).y)
-            break;
-        case 2:
-            clusteredLayout(nodes, "gender")
-            fill = d => {
-                return colourScale(d.data.category)
-            }
-            break;
-    }
-
-    circles.transition()
-        .duration(750)
-        .attr("cx", d => d.x)
-        .attr("cy", d => d.y)
-        .attr("r", d => d.r)
-        .attr("fill", fill)
-
-    showAndHideLabels(step)
-}
-
-function showAndHideLabels(step) {
-    if (step === 1) {
-        categoryLabels.transition()
-            .duration(750)
-            .attr("opacity", 1)
-    } else {
-        categoryLabels.transition()
-            .duration(750)
-            .attr("opacity", 0)
-    }
-}
-
-function initialLayout(nodes) {
-    nodes.forEach(node => {
-        delete node.x;
-        delete node.y;
-    })
-
-    d3.forceSimulation(nodes).stop();
-
-
-    // center nodes
-    nodes.forEach((node) => {
-        node.x = node.x + center.x;
-        node.y = node.y + center.y;
-        node.r = circleRadius;
-    });
-}
-
-function clusteredLayout(nodes, grouping) {
-    const grouped = d3.group(nodes, d => d.data[grouping]);
-
-    const packLayout = d3.pack()
-        .size([width, height])
-        .padding(10)
-
-    const pack = packLayout(d3.hierarchy(grouped).sum(d => 1))
-    const leaves = pack.leaves();
-
-    leaves.forEach((leaf) => {
-        const node = nodes.find(node => node.id === leaf.data.id)
-        if (!node) {
-            console.error("node not found", leaf.data.id)
-        }
-        node.x = leaf.x
-        node.y = leaf.y
-    })
-
-    const centroids = d3.rollup(leaves, centroid, d => d.parent.data[0])
-
-    return { nodes, centroids }
-}
-
-function centroid(nodes) {
-    let x = 0;
-    let y = 0;
-    let z = 0;
-    for (const d of nodes) {
-        let k = d.r ** 2;
-        x += d.x * k;
-        y += d.y * k;
-        z += k;
-    }
-    return { x: x / z, y: y / z };
-}
+// Add SVG to page
+document.querySelector("#chart").appendChild(svg.node());
