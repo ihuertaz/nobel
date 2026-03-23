@@ -36,29 +36,6 @@
                 </section>
             </div>
         </div>
-        <div id="chart2"></div>
-
-            <script type="module">
-              import * as Plot from "https://cdn.jsdelivr.net/npm/@observablehq/plot/+esm";
-            
-              const chart = Plot.plot({
-                color: { legend: true },
-                marginLeft: 2,
-                insetLeft: 0,
-                x: { grid: true },
-                marks: [
-                  Plot.dot(
-                    nobelLaureates1,
-                    Plot.group(
-                      { r: "count" },
-                      { x: "Category", y: "Gender", stroke: "Gender", tip: true }
-                    )
-                  )
-                ]
-              });
-            
-              document.querySelector("#chart2").append(chart);
-            </script>
         <p>Tincidunt ac molestie ut, malesuada at elit. Nam consequat dolor in egestas viverra. Sed a tempus odio, non
             tempus eros. Mauris viverra, diam eget maximus rhoncus, erat quam condimentum diam, at scelerisque diam
             turpis et sapien. Aenean consectetur volutpat ligula ac mollis. Morbi molestie eros nec congue pharetra.
