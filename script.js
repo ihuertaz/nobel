@@ -224,3 +224,28 @@ simulation.on("tick", () => {
 // --------------------------------------------------
 // Insert the chart into the HTML container
 document.querySelector("#chart").prepend(svg.node());
+
+// --------------------------------------------------
+// 15. SECOND CHART (Observable Plot)
+// --------------------------------------------------
+import * as Plot from "https://cdn.jsdelivr.net/npm/@observablehq/plot/+esm";
+
+// Create the second chart
+const chart2 = Plot.plot({
+  color: { legend: true },
+  marginLeft: 40,
+  insetLeft: 0,
+  x: { grid: true },
+  marks: [
+    Plot.dot(
+      data,
+      Plot.group(
+        { r: "count" },
+        { x: "category", y: "gender", stroke: "gender", tip: true }
+      )
+    )
+  ]
+});
+
+// Append it to the second container
+document.querySelector("#chart2").append(chart2);
