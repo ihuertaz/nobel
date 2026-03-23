@@ -233,7 +233,7 @@ import * as Plot from "https://cdn.jsdelivr.net/npm/@observablehq/plot/+esm";
 // Create the second chart
 const chart2 = Plot.plot({
   color: { legend: true },
-  marginLeft: 100,
+  marginLeft: 50,
   insetLeft: 0,
   x: { grid: true },
   marks: [
